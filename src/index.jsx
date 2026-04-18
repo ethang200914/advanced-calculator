@@ -3,7 +3,7 @@ code is entirely human-written; much of the logic was initially written in C# bu
 bc the things I didn't know how to code myself/didn't fully understand were taken from stack overflow (i.e. ODE solver logic) and most of those
 were already in js
 
-may the vibe coders burn forevermore
+may the vibe coders burn like the heretics they are
 and their clankers chip and break
 amen
 */
