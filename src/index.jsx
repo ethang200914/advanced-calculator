@@ -185,22 +185,23 @@ const onClick = e => {
   const { x } = getMousePos(e);
   const W = cvRef.current.width;
   const wx = s.xMin + (x / W) * (s.xMax - s.xMin);
-  const cols = ["#8b7cf6", "#5eead4", "#fbbf24", "#f87171", "#60a5fa"]; 
-  // calculate intersections only if more than 1 function exists
+  const cols = ["#8b7cf6", "#5eead4", "#fbbf24", "#f87171", "#60a5fa"];
+  // find intersections (only if > 1 function exists)
   const intersections = [];
   if (fns.length > 1) {
-    const step = (s.xMax - s.xMin) / 500;
+    const step = (s.xMax - s.xMin) / 1000;
     for (let i = 0; i < fns.length; i++) {
       for (let j = i + 1; j < fns.length; j++) {
-        for (let tx2 = s.xMin; tx2 < s.xMax; tx2 += step) {
+        for (let curX = s.xMin; curX < s.xMax; curX += step) {
           try {
-            const diffA = fns[i](tx2) - fns[j](tx2);
-            const diffB = fns[i](tx2 + step) - fns[j](tx2 + step);
-            if (isFinite(diffA) && isFinite(diffB) && diffA * diffB < 0) {
+            const diff1 = fns[i](curX) - fns[j](curX);
+            const diff2 = fns[i](curX + step) - fns[j](curX + step);
+            // if sign changes, they crossed
+            if (isFinite(diff1) && isFinite(diff2) && diff1 * diff2 <= 0) {
               intersections.push({
-                pair: `${fnLabels[i] || 'f'+(i+1)} & ${fnLabels[j] || 'f'+(j+1)}`,
-                x: (tx2 + step/2).toFixed(4),
-                y: fns[i](tx2 + step/2).toFixed(4)
+                labels: `${fnLabels[i] || 'f'+(i+1)} ∩ ${fnLabels[j] || 'f'+(j+1)}`,
+                x: (curX + step/2).toFixed(4),
+                y: fns[i](curX + step/2).toFixed(4)
               });
             }
           } catch {}
@@ -212,20 +213,20 @@ const onClick = e => {
     try {
       const y = fn(wx);
       const step = (s.xMax - s.xMin) / 500;
-      // zeros (x-axis intersections)
+      // x-Intercepts (zeros)
       const zeros = [];
-      // y-axis intersection (where x = 0)
-      let yIntercept = null;
-      if (s.xMin <= 0 && s.xMax >= 0) {
-        try { yIntercept = fn(0).toFixed(4); } catch {}
-      }
       for (let tx2 = s.xMin; tx2 < s.xMax; tx2 += step) {
         try {
           const ya = fn(tx2), yb = fn(tx2 + step);
-          if (isFinite(ya) && isFinite(yb) && ya * yb < 0) {
+          if (isFinite(ya) && isFinite(yb) && ya * yb <= 0) {
             zeros.push(((tx2 + tx2 + step) / 2).toFixed(4));
           }
-        } catch {}
+        } catch { }
+      }
+      // y-Intercept (intersection with y-axis at x=0)
+      let yIntercept = null;
+      if (s.xMin <= 0 && s.xMax >= 0) {
+        try { yIntercept = fn(0).toFixed(4); } catch {}
       }
         // local extrema near click
         // I have no idea what I'm doing but it appears to (somewhat) work so I'm never touching this section of code again
@@ -237,7 +238,14 @@ const onClick = e => {
           if (ys[k] < ys[k - 1] && ys[k] < ys[k + 1]) { if (ys[k] < localMin) { localMin = ys[k]; minX = xs[k]; } }
           if (ys[k] > ys[k - 1] && ys[k] > ys[k + 1]) { if (ys[k] > localMax) { localMax = ys[k]; maxX = xs[k]; } }
         }
-        return {i, color: cols[i % cols.length], label: fnLabels[i] || `f${i + 1}`, y: y.toFixed(5), zeros, yIntercept, localMin, localMax};
+        return { 
+        i, 
+        color: cols[i % cols.length], 
+        label: fnLabels[i] || `f${i + 1}`, 
+        y: y.toFixed(5), 
+        zeros, 
+        yIntercept 
+      };
     } catch { return null; }
   }).filter(Boolean);
 
@@ -270,26 +278,23 @@ const onClick = e => {
           </div>
           {clickInfo.info.map(inf => (
             <div key={inf.i} style={{ marginBottom: 8, borderLeft: `2px solid ${inf.color}`, paddingLeft: 10 }}>
-              <div style={{ color: inf.color, marginBottom: 4 }}>{inf.label}</div>
+              <div style={{ color: inf.color, marginBottom: 4, fontWeight: 'bold' }}>{inf.label}</div>
               <div style={{ color: C.text }}>f(x) = {inf.y}</div>
-              <div style={{ color: C.muted }}>y-intercept: {inf.yIntercept ?? "not in view"}</div>
-              <div style={{ color: C.muted }}>x-intercepts: {inf.zeros.length ? inf.zeros.join(", ") : "none"}</div>              
-              <div style={{ color: C.muted }}>local min: {inf.localMin}</div>
-              <div style={{ color: C.muted }}>local max: {inf.localMax}</div>
+              <div style={{ color: C.muted }}>y-intercept: {inf.yIntercept !== null ? `(0, ${inf.yIntercept})` : "none in view"}</div>
+              <div style={{ color: C.muted }}>x-intercepts: {inf.zeros.length ? inf.zeros.join(", ") : "none"}</div>
             </div>
           ))}
-
           {clickInfo.intersections && clickInfo.intersections.length > 0 && (
-            <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
-              <div style={{ color: "#fff", marginBottom: 4, fontSize: 11 }}>Intersections</div>
+            <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px dotted ${C.border}` }}>
+              <div style={{ color: "#fff", marginBottom: 6, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Graph Intersections</div>
               {clickInfo.intersections.map((inter, idx) => (
-                <div key={idx} style={{ color: C.muted, fontSize: 11 }}>
-                  <span style={{ color: "#5eead4" }}>{inter.pair}</span>: ({inter.x}, {inter.y})
+                <div key={idx} style={{ color: C.muted, fontSize: 11, marginBottom: 2 }}>
+                  <span style={{ color: "#5eead4" }}>{inter.labels}</span> at ({inter.x}, {inter.y})
                 </div>
               ))}
             </div>
-          )}
-          <div style={{ color: C.dim, fontSize: 10, marginTop: 4 }}>drag to pan · scroll to zoom · click for analysis</div>
+          )}          
+        <div style={{ color: C.dim, fontSize: 10, marginTop: 4 }}>drag to pan · scroll to zoom · click for analysis</div>
         </div>
       )}
     </div>
