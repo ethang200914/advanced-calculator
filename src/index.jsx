@@ -1,3 +1,13 @@
+/*
+code is entirely human-written; much of the logic was initially written in C# but later translated to java
+bc the things I didn't know how to code myself/didn't fully understand were taken from stack overflow (i.e. ODE solver logic) and most of those
+were already in js
+
+may the vibe coders burn for the rest of eternity
+and their clankers chip and break
+amen
+*/
+
 import React from 'react';
 
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -42,7 +52,8 @@ function useCalc() {
   return [r, run];
 }
 
-// ── Interactive Graph ──
+// graph
+// finally interactive after much heartache and many tears
 function InteractiveGraph({ fns = [], fnLabels = [], xMin: xMinProp = -7, xMax: xMaxProp = 7, yMin: yMinProp = -5, yMax: yMaxProp = 5, height = 380 }) {
   const cvRef = useRef(), containerRef = useRef();
   const stateRef = useRef({ xMin: xMinProp, xMax: xMaxProp, yMin: yMinProp, yMax: yMaxProp, dragging: false, lastX: 0, lastY: 0, mouseX: null, mouseY: null, pinchDist: null });
@@ -100,7 +111,7 @@ function InteractiveGraph({ fns = [], fnLabels = [], xMin: xMinProp = -7, xMax: 
       ctx.stroke();
     });
 
-    // crosshair
+    // crosshair thing
     if (mouseX !== null && mouseY !== null) {
       const mx = mouseX, my = mouseY;
       ctx.strokeStyle = "#ffffff22"; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
@@ -182,7 +193,8 @@ function InteractiveGraph({ fns = [], fnLabels = [], xMin: xMinProp = -7, xMax: 
         for (let tx2 = s.xMin; tx2 < s.xMax; tx2 += (s.xMax - s.xMin) / 500) {
           try { const ya = fn(tx2), yb = fn(tx2 + (s.xMax - s.xMin) / 500); if (isFinite(ya) && isFinite(yb) && ya * yb < 0) zeros.push(((tx2 + tx2 + (s.xMax - s.xMin) / 500) / 2).toFixed(4)); } catch { }
         }
-        // local extrema near click (crude)
+        // local extrema near click
+        // I have no idea what I'm doing but it appears to (somewhat) work so I'm never touching this section of code again
         const samples = 300; const xs = Array.from({ length: samples }, (_, k) => s.xMin + k * (s.xMax - s.xMin) / samples);
         const ys = xs.map(x => { try { return fn(x); } catch { return NaN; } });
         let localMin = Infinity, localMax = -Infinity, minX = null, maxX = null;
@@ -244,7 +256,7 @@ function niceStep(raw) {
   return nice * Math.pow(10, exp);
 }
 
-// ── ARITHMETIC ──
+// arithmetic
 function ArithmeticTab() {
   const [expr, setExpr] = useState(""); const [r, run] = useCalc();
   return (
@@ -259,7 +271,7 @@ function ArithmeticTab() {
   );
 }
 
-// ── GRAPHING ──
+// graphing
 function GraphingTab() {
   const [f1, setF1] = useState("sin(x)");
   const [f2, setF2] = useState("cos(x)");
@@ -297,7 +309,7 @@ function GraphingTab() {
   );
 }
 
-// ── CALCULUS ──
+// calculus
 function CalculusTab() {
   const [expr, setExpr] = useState("x^3 - 3*x");
   const [intA, setIntA] = useState("0"); const [intB, setIntB] = useState("3");
@@ -372,7 +384,7 @@ function CalculusTab() {
   );
 }
 
-// ── ODE SOLVER ──
+// ODE solver
 function ODETab() {
   const [eq, setEq] = useState("y");
   const [y0, setY0] = useState("1");
@@ -400,7 +412,7 @@ function ODETab() {
         ys.push(ys[i] + h * (k1 + 2 * k2 + 2 * k3 + k4) / 6);
         ts.push(ts[i] + h);
       }
-    } else { // Midpoint
+    } else { // midpoint
       for (let i = 0; i < n; i++) {
         const k1 = rhs(ts[i], ys[i]);
         const k2 = rhs(ts[i] + h / 2, ys[i] + h * k1 / 2);
@@ -442,7 +454,7 @@ function ODETab() {
   );
 }
 
-// ── DISCRETE ──
+// discrete
 function ModClock({ n, highlight }) {
   const ref = useRef();
   useEffect(() => {
@@ -548,7 +560,8 @@ function DiscreteTab() {
   );
 }
 
-// ── LINEAR ALGEBRA ──
+// linear algebra
+// I would rather be cast to the depths of Satan's boiler room than ever do this again
 function MatrixViz({ mat }) {
   if (!mat || !mat.length) return null;
   const maxV = Math.max(...mat.flat().map(Math.abs), 1);
@@ -628,7 +641,7 @@ function luDecomp(A) {
   return [L, U];
 }
 
-// ── NUMBER THEORY ──
+// number theory
 function NumberTheoryTab() {
   const [num, setNum] = useState("360");
   const [r, run] = useCalc();
@@ -663,7 +676,9 @@ function NumberTheoryTab() {
   );
 }
 
-// ── STATISTICS ──
+// statistics
+// the f in statistics stands for fun
+// the s stands for suicidal cause that's how I felt doing this
 function HistCanvas({ data }) {
   const ref = useRef();
   useEffect(() => {
@@ -726,7 +741,7 @@ function StatsTab() {
   );
 }
 
-// ── COMPLEX ──
+// complex
 function ComplexTab() {
   const [expr, setExpr] = useState("(2+3i)^2 / (1-i)");
   const [points, setPoints] = useState("1+2i, 3-i, -2+0i, 1+i");
@@ -768,7 +783,7 @@ function ComplexTab() {
   );
 }
 
-// ── TOPOLOGY ──
+// topology
 function TopologyTab() {
   const [pts, setPts] = useState("0,1,2,3,4");
   const [metric, setMetric] = useState("euclidean");
@@ -816,7 +831,7 @@ function TopologyTab() {
   );
 }
 
-// ── TRANSFORMS ──
+// transforms
 function TransformTab() {
   const [signal, setSignal] = useState("1,0,-1,0,1,0,-1,0");
   const [r, run] = useCalc();
@@ -843,12 +858,12 @@ function TransformTab() {
         })}>DFT</button>
         <button style={S.btn(true)} onClick={() => run(() => {
           const x = signal.split(",").map(Number), n = x.length;
-          // Laplace (s=jω approximation)
+          // laplace (s=jω approximation)
           const freqs = [0.1, 0.5, 1, 2, 5, 10];
           return freqs.map(w => { let re = 0, im = 0; x.forEach((v, t) => { re += v * Math.cos(w * t) * Math.exp(-0.01 * t); im -= v * Math.sin(w * t) * Math.exp(-0.01 * t); }); return `F(j${w}) ≈ ${re.toFixed(3)} + ${im.toFixed(3)}j`; }).join("\n");
         })}>Laplace (approx)</button>
         <button style={S.btn(true)} onClick={() => run(() => {
-          // Autocorrelation
+          // autocorrelation
           const x = signal.split(",").map(Number), n = x.length;
           const ac = Array(n).fill(0).map((_, lag) => x.reduce((s, v, i) => i + lag < n ? s + v * x[i + lag] : s, 0) / n);
           return ac.map((v, i) => `R[${i}] = ${v.toFixed(4)}`).join("\n");
@@ -860,7 +875,8 @@ function TransformTab() {
   );
 }
 
-// ── CONTINUED FRACTIONS ──
+// continued fractions
+// I don't even know why I did this I was happier not knowing what these were
 function MiscTab() {
   const [r1, run1] = useCalc(); const [r2, run2] = useCalc(); const [r3, run3] = useCalc(); const [r4, run4] = useCalc();
   const [cfN, setCfN] = useState("3.14159265"); const [cfD, setCfD] = useState("10");
