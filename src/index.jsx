@@ -3,7 +3,7 @@ code is entirely human-written; much of the logic was initially written in C# bu
 bc the things I didn't know how to code myself/didn't fully understand were taken from stack overflow (i.e. ODE solver logic) and most of those
 were already in js
 
-may the vibe coders burn for the rest of eternity
+may the vibe coders burn forevermore
 and their clankers chip and break
 amen
 */
@@ -180,19 +180,53 @@ function InteractiveGraph({ fns = [], fnLabels = [], xMin: xMinProp = -7, xMax: 
     s.yMin = wy + (s.yMin - wy) * factor; s.yMax = wy + (s.yMax - wy) * factor;
     draw();
   };
-  const onClick = e => {
-    const s = stateRef.current; const { x } = getMousePos(e);
-    const W = cvRef.current.width;
-    const wx = s.xMin + (x / W) * (s.xMax - s.xMin);
-    const cols = ["#8b7cf6", "#5eead4", "#fbbf24", "#f87171", "#60a5fa"];
-    const info = fns.map((fn, i) => {
-      try {
-        const y = fn(wx);
-        // find zeros near click
-        const zeros = [];
-        for (let tx2 = s.xMin; tx2 < s.xMax; tx2 += (s.xMax - s.xMin) / 500) {
-          try { const ya = fn(tx2), yb = fn(tx2 + (s.xMax - s.xMin) / 500); if (isFinite(ya) && isFinite(yb) && ya * yb < 0) zeros.push(((tx2 + tx2 + (s.xMax - s.xMin) / 500) / 2).toFixed(4)); } catch { }
+const onClick = e => {
+  const s = stateRef.current; 
+  const { x } = getMousePos(e);
+  const W = cvRef.current.width;
+  const wx = s.xMin + (x / W) * (s.xMax - s.xMin);
+  const cols = ["#8b7cf6", "#5eead4", "#fbbf24", "#f87171", "#60a5fa"]; 
+  // calculate intersections only if more than 1 function exists
+  const intersections = [];
+  if (fns.length > 1) {
+    const step = (s.xMax - s.xMin) / 500;
+    for (let i = 0; i < fns.length; i++) {
+      for (let j = i + 1; j < fns.length; j++) {
+        for (let tx2 = s.xMin; tx2 < s.xMax; tx2 += step) {
+          try {
+            const diffA = fns[i](tx2) - fns[j](tx2);
+            const diffB = fns[i](tx2 + step) - fns[j](tx2 + step);
+            if (isFinite(diffA) && isFinite(diffB) && diffA * diffB < 0) {
+              intersections.push({
+                pair: `${fnLabels[i] || 'f'+(i+1)} & ${fnLabels[j] || 'f'+(j+1)}`,
+                x: (tx2 + step/2).toFixed(4),
+                y: fns[i](tx2 + step/2).toFixed(4)
+              });
+            }
+          } catch {}
         }
+      }
+    }
+  }
+  const info = fns.map((fn, i) => {
+    try {
+      const y = fn(wx);
+      const step = (s.xMax - s.xMin) / 500;
+      // zeros (x-axis intersections)
+      const zeros = [];
+      // y-axis intersection (where x = 0)
+      let yIntercept = null;
+      if (s.xMin <= 0 && s.xMax >= 0) {
+        try { yIntercept = fn(0).toFixed(4); } catch {}
+      }
+      for (let tx2 = s.xMin; tx2 < s.xMax; tx2 += step) {
+        try {
+          const ya = fn(tx2), yb = fn(tx2 + step);
+          if (isFinite(ya) && isFinite(yb) && ya * yb < 0) {
+            zeros.push(((tx2 + tx2 + step) / 2).toFixed(4));
+          }
+        } catch {}
+      }
         // local extrema near click
         // I have no idea what I'm doing but it appears to (somewhat) work so I'm never touching this section of code again
         const samples = 300; const xs = Array.from({ length: samples }, (_, k) => s.xMin + k * (s.xMax - s.xMin) / samples);
@@ -203,11 +237,12 @@ function InteractiveGraph({ fns = [], fnLabels = [], xMin: xMinProp = -7, xMax: 
           if (ys[k] < ys[k - 1] && ys[k] < ys[k + 1]) { if (ys[k] < localMin) { localMin = ys[k]; minX = xs[k]; } }
           if (ys[k] > ys[k - 1] && ys[k] > ys[k + 1]) { if (ys[k] > localMax) { localMax = ys[k]; maxX = xs[k]; } }
         }
-        return { i, color: cols[i % cols.length], label: fnLabels[i] || `f${i + 1}`, y: y.toFixed(5), zeros: zeros.slice(0, 5), localMin: minX ? `(${minX.toFixed(4)}, ${localMin.toFixed(4)})` : "—", localMax: maxX ? `(${maxX.toFixed(4)}, ${localMax.toFixed(4)})` : "—" };
-      } catch { return null; }
-    }).filter(Boolean);
-    setClickInfo({ x: wx.toFixed(4), info });
-  };
+        return {i, color: cols[i % cols.length], label: fnLabels[i] || `f${i + 1}`, y: y.toFixed(5), zeros, yIntercept, localMin, localMax};
+    } catch { return null; }
+  }).filter(Boolean);
+
+  setClickInfo({ x: wx.toFixed(4), info, intersections });
+};
 
   useEffect(() => {
     const cv = cvRef.current; if (!cv) return;
@@ -237,11 +272,23 @@ function InteractiveGraph({ fns = [], fnLabels = [], xMin: xMinProp = -7, xMax: 
             <div key={inf.i} style={{ marginBottom: 8, borderLeft: `2px solid ${inf.color}`, paddingLeft: 10 }}>
               <div style={{ color: inf.color, marginBottom: 4 }}>{inf.label}</div>
               <div style={{ color: C.text }}>f(x) = {inf.y}</div>
-              <div style={{ color: C.muted }}>zeros (visible): {inf.zeros.length ? inf.zeros.join(", ") : "none found"}</div>
+              <div style={{ color: C.muted }}>y-intercept: {inf.yIntercept ?? "not in view"}</div>
+              <div style={{ color: C.muted }}>x-intercepts: {inf.zeros.length ? inf.zeros.join(", ") : "none"}</div>              
               <div style={{ color: C.muted }}>local min: {inf.localMin}</div>
               <div style={{ color: C.muted }}>local max: {inf.localMax}</div>
             </div>
           ))}
+
+          {clickInfo.intersections && clickInfo.intersections.length > 0 && (
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
+              <div style={{ color: "#fff", marginBottom: 4, fontSize: 11 }}>Intersections</div>
+              {clickInfo.intersections.map((inter, idx) => (
+                <div key={idx} style={{ color: C.muted, fontSize: 11 }}>
+                  <span style={{ color: "#5eead4" }}>{inter.pair}</span>: ({inter.x}, {inter.y})
+                </div>
+              ))}
+            </div>
+          )}
           <div style={{ color: C.dim, fontSize: 10, marginTop: 4 }}>drag to pan · scroll to zoom · click for analysis</div>
         </div>
       )}
